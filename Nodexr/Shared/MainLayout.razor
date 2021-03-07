@@ -1,0 +1,14 @@
+@using Nodexr.Shared.NodeTypes;
+@using Blazored.Toast.Configuration;
+@inject RegexReplaceHandler RegexReplaceHandler;
+
+@inherits LayoutComponentBase
+
+
+<div class="main">
+    <BlazoredToasts Position="ToastPosition.BottomRight"
+                    Timeout="13"/>
+    <div class="content">
+        @Body
+    </div>
+</div>

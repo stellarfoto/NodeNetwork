@@ -1,0 +1,83 @@
+﻿@inject INodeHandler NodeHandler
+@inject IJSRuntime JSRuntime
+@inject IModalService ModalService
+@inject NavigationManager NavManager
+@inject IToastService ToastService
+@inject RegexReplaceHandler RegexReplaceHandler
+@using Microsoft.AspNetCore.WebUtilities
+
+<h3 style="margin:7px; display:inline-block; font-size:23px;">Output:</h3>
+
+<div class="output-regex-container">
+    <div class="output-regex">@if (isEditing)
+    {<OutputEditor StartExpression="@NodeHandler.CachedOutput.Expression"
+                   OnSubmitted="@OnEditSubmitted"
+                   OnCanceled="OnEditCancelled"/>}
+    else
+    {
+        @foreach (var segment in @NodeHandler.CachedOutput.Contents)
+        {<OutputDisplaySegment Segment="segment"/>@*This must not be surrounded by whitespace*@}
+    }
+    </div>
+
+    <button class="output-regex-button" @onclick="OnEditButtonClick" title="Edit"><i class="fas fa-pencil-alt"></i></button>
+    <button class="output-regex-button" @onclick="CopyTextToClipboard" title="Copy to clipboard"><i class="far fa-clipboard"></i></button>
+    <button class="output-regex-button" @onclick="OnCreateLinkButtonClick" title="Create shareable link"><i class="fas fa-link"></i></button>
+</div>
+
+
+@functions{
+
+    bool isEditing = false;
+
+    protected override void OnInitialized()
+    {
+        NodeHandler.OutputChanged += (sender, e) => StateHasChanged();
+    }
+
+    private void OnEditButtonClick()
+    {
+        isEditing = !isEditing;
+    }
+
+    private void OnEditSubmitted(string newExpression)
+    {
+        isEditing = false;
+        NodeHandler.TryCreateTreeFromRegex(newExpression);
+    }
+
+    private void OnEditCancelled()
+    {
+        isEditing = false;
+        StateHasChanged();
+    }
+
+    private async Task OnCreateLinkButtonClick()
+    {
+        var urlParams = new Dictionary<string, string>
+            {
+                { "parse", NodeHandler.CachedOutput.Expression }
+            };
+
+        if (RegexReplaceHandler.SearchText != RegexReplaceHandler.DefaultSearchText)
+        {
+            urlParams.Add("search", RegexReplaceHandler.SearchText);
+        }
+
+        if (RegexReplaceHandler.ReplacementRegex != RegexReplaceHandler.DefaultReplacementRegex)
+        {
+            urlParams.Add("replace", RegexReplaceHandler.ReplacementRegex);
+        }
+
+        string url = QueryHelpers.AddQueryString(NavManager.BaseUri, urlParams);
+        await JSRuntime.InvokeVoidAsync("clipboardCopy.copyText", url, "");
+        ToastService.ShowInfo("", "Link copied to clipboard");
+    }
+
+    private async Task CopyTextToClipboard()
+    {
+        string regex = NodeHandler.CachedOutput.Expression;
+        await JSRuntime.InvokeVoidAsync("clipboardCopy.copyText", regex, "");
+        ToastService.ShowInfo(regex, "Copied to clipboard");
+    }
+}
